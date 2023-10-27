@@ -10,10 +10,13 @@ QCD is a smakemake worflow for microbial illumina sequencing quality control and
 $ snakemake -s QCD.smk -p --use-conda -j 999 --cluster "sbatch -A {cluster.account} -p {cluster.partition} -N {cluster.nodes}  -t {cluster.walltime} -c {cluster.procs} --mem-per-cpu {cluster.pmem}" --conda-frontend conda --cluster-config config/cluster.json --configfile config/config_test.yaml --latency-wait 1000
 ```
 
+![Alt text](./QCD_dag.pdf)
+
 ### Gather Summary files and generate a report. 
 ```
 $ snakemake -s QCD_report.smk -p --configfile config/config_test.yaml
 ```
+![Alt text](./QCD_report_dag.pdf)
 
 ## Dependencies
 
