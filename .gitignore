@@ -1,3 +1,4 @@
 results/
 logs/
 test_data/
+.snakemake/
