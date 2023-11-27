@@ -6,6 +6,7 @@ import os
 import json
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 
 samples_df = pd.read_csv(config["samples"])
 SAMPLE = list(samples_df['sample_id'])
@@ -49,10 +50,8 @@ if not isExist:
 def coverage_report(prefix, outdir):
     prefix = prefix.pop()
     report_dir = str(outdir.pop()) + "/%s_Report" % prefix
-    print(report_dir)
     # Generate Coverage report 
     final_coverage_file = "%s/data/%s_Final_Coverage.txt" % (report_dir, prefix)
-    print(final_coverage_file)
     f3=open(final_coverage_file, 'w+')
     header = "Sample,Total_reads,Total_bp,MeanReadLength,Coverage\n"
     f3.write(header)
@@ -87,7 +86,7 @@ def kraken_report(prefix, outdir):
     # Organize reports directory
     report_dir = str(outdir) + "/%s_Report" % prefix
     report_script_dir = str(outdir) + "/%s_Report/scripts" % prefix
-    print(report_script_dir)
+
     kraken_dir = str(outdir) + "/*/kraken"
 
     kraken_summary_script = open("%s/kraken_summary.sh" % report_script_dir, 'w+')
@@ -99,7 +98,7 @@ def kraken_report(prefix, outdir):
     kraken_summary_script.write("sed -i 's/\s//g' %s/data/%s_Kraken_report_final.csv\n" % (report_dir, prefix))
     kraken_summary_script.close()
 
-    os.system("%s/kraken_summary.sh" % report_script_dir)
+    os.system("bash %s/kraken_summary.sh" % report_script_dir)
 
 def summary(prefix, outdir):
     prefix = prefix.pop()
@@ -137,12 +136,17 @@ def summary(prefix, outdir):
     quast_filter = multiqc_general_stats_summary['Sample'].str.contains("_contigs_l1000")
     multiqc_quast = multiqc_general_stats_summary[quast_filter]
     multiqc_quast = multiqc_quast.replace(['_contigs_l1000'], '', regex=True)
-    #multiqc_quast = multiqc_quast[["Sample", "QUAST_mqc-generalstats-quast-N50", "QUAST_mqc-generalstats-quast-Total_length"]]
-    multiqc_quast = multiqc_quast[["Sample", "N50", "Total length"]]
+    
+    if 'QUAST_mqc-generalstats-quast-N50' in multiqc_quast.columns and 'QUAST_mqc-generalstats-quast-Total_length' in multiqc_quast.columns:
+        multiqc_quast = multiqc_quast[["Sample", "QUAST_mqc-generalstats-quast-N50", "QUAST_mqc-generalstats-quast-Total_length"]]
+        multiqc_quast = multiqc_quast.rename(columns={"QUAST_mqc-generalstats-quast-N50": "N50", "QUAST_mqc-generalstats-quast-Total_length": "Total length"})
+    elif 'N50' in multiqc_quast.columns and 'Total length' in multiqc_quast.columns:
+        multiqc_quast = multiqc_quast[["Sample", "N50", "Total length"]]
+    #multiqc_quast = multiqc_quast[["Sample", "N50", "Total length"]]
 
     contig_distribution = pd.read_csv("results/%s/%s_Report/multiqc/%s_QC_report_data/mqc_quast_num_contigs_1.txt" % (prefix, prefix, prefix), sep='\t', header=0)
     contig_distribution = contig_distribution.replace(['_contigs_l1000'], '', regex=True)
-    contig_distribution['Total # of contigs'] = contig_distribution.sum(axis=1)
+    contig_distribution['Total # of contigs'] = contig_distribution.sum(axis=1, numeric_only=True)
     contig_distribution = contig_distribution[['Sample', 'Total # of contigs']]
 
     QC_summary_temp1 = pd.merge(Coverage, mlst, on=["Sample", "Sample"],  how='left')
@@ -152,7 +156,21 @@ def summary(prefix, outdir):
     QC_summary_temp5 = pd.merge(QC_summary_temp4, multiqc_quast, on=["Sample", "Sample"], how='left')
     QC_summary_temp6 = pd.merge(QC_summary_temp5, contig_distribution, on=["Sample", "Sample"], how='left')
     
-    QC_summary_temp6.to_csv('results/%s/%s_Report/data/%s_QC_summary.csv' % (prefix, prefix, prefix), index=False)
+    QC_summary_temp7 = QC_summary_temp6[["Sample" , "Total_reads" , "Total_bp" , "MeanReadLength" , "Coverage" , "Scheme" , "ST" , "PercentageofreadsforSpecies" , "#ofreadsforSpecies" , "Species" , "After_trim_per_base_sequence_content" , "After_trim_overrepresented_sequences" , "After_trim_%GC" , "After_trim_Total Bases" , "After_trim_Total Sequences" , "After_trim_median_sequence_length" , "After_trim_avg_sequence_length" , "After_trim_total_deduplicated_percentage" , "After_trim_Sequence length" , "After_trim_adapter_content" , "N50" , "Total length" , "Total # of contigs"]]
+
+    QC_check_condition = [
+    (QC_summary_temp7['Total # of contigs'] > config["max_contigs"]),
+    (QC_summary_temp7['Total # of contigs'] < config["min_contigs"]),
+    (QC_summary_temp7['Total length'] > config["assembly_length"]),
+    (QC_summary_temp7['Coverage'] < config["coverage"]),
+    (QC_summary_temp7['Total # of contigs'].isnull()),
+    ]
+
+    status = ['FAIL', 'FAIL', 'FAIL', 'FAIL', "Run FAIL"]
+
+    QC_summary_temp7['QC Check'] = np.select(QC_check_condition, status)
+
+    QC_summary_temp7.to_csv('results/%s/%s_Report/data/%s_QC_summary.csv' % (prefix, prefix, prefix), index=False)
 
 def plot(prefix, outdir):
     prefix = prefix.pop()
@@ -169,11 +187,11 @@ def plot(prefix, outdir):
     Coverage_dist.savefig('%s/fig/%s_Coverage_distribution.png' % (report_dir, prefix), dpi=600)
 
 
-    ax1 = QC_summary.plot.scatter(x = 'total_deduplicated_percentage', y = 'Total Sequences', c = 'DarkBlue')
+    ax1 = QC_summary.plot.scatter(x = 'After_trim_total_deduplicated_percentage', y = 'After_trim_Total Sequences', c = 'DarkBlue')
     fig = ax1.get_figure()
     fig.savefig('%s/fig/%s_raw_dedup_vs_totalsequence.png' % (report_dir, prefix), dpi=600)
 
-    ax1 = QC_summary.plot.scatter(x = 'total_deduplicated_percentage', y = 'Total Sequences', c = 'DarkBlue')
+    ax1 = QC_summary.plot.scatter(x = 'After_trim_total_deduplicated_percentage', y = 'After_trim_Total Sequences', c = 'DarkBlue')
     fig = ax1.get_figure()
     fig.savefig('%s/fig/%s_aftertrim_dedup_vs_totalsequence.png' % (report_dir, prefix), dpi=600)
     ax1.cla()
@@ -218,8 +236,8 @@ rule all:
     input:
         coverage_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_Final_Coverage.txt", prefix=PREFIX),
         kraken_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_Kraken_report_final.csv", prefix=PREFIX),
-        multiqc_report = expand("results/{prefix}/{prefix}_Report/multiqc/{prefix}_QC_report.html", prefix=PREFIX),
         mlst_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_MLST_results.csv", prefix=PREFIX),
+        multiqc_report = expand("results/{prefix}/{prefix}_Report/multiqc/{prefix}_QC_report.html", prefix=PREFIX),
         QC_summary = expand("results/{prefix}/{prefix}_Report/data/{prefix}_QC_summary.csv", prefix=PREFIX),
         QC_plot = expand("results/{prefix}/{prefix}_Report/fig/{prefix}_Coverage_distribution.png", prefix=PREFIX),
 
@@ -259,6 +277,9 @@ rule kraken_report:
 rule multiqc:
     input:
         inputdir = lambda wildcards: expand(f"results/{wildcards.prefix}"),
+        coverage = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.prefix}_Report/data/{wildcards.prefix}_Final_Coverage.txt"),
+        kraken = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.prefix}_Report/data/{wildcards.prefix}_Kraken_report_final.csv"),
+        mlst = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.prefix}_Report/data/{wildcards.prefix}_MLST_results.csv"),
     output:
         multiqc_fastqc_report = f"results/{{prefix}}/{{prefix}}_Report/multiqc/{{prefix}}_QC_report.html",
     params:
@@ -267,7 +288,7 @@ rule multiqc:
     conda:
         "envs/multiqc.yaml"
     shell:
-        "multiqc -f --export --outdir {params.outdir}/multiqc -n {params.prefix}_QC_report -i {params.prefix}_QC_report {input.inputdir}"
+        "multiqc -f --export --outdir {params.outdir}/multiqc -n {params.prefix}_QC_report -i {params.prefix}_QC_report {input.inputdir}/*/quality_aftertrim/*_Forward {input.inputdir}/*/kraken {input.inputdir}/*/prokka {input.inputdir}/*/quast"
 
 rule mlst:
     input:
@@ -282,6 +303,10 @@ rule mlst:
 rule Summary:
     input:
         outdir = lambda wildcards: expand(f"results/{wildcards.prefix}/"),
+        multiqc_fastqc_report = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.prefix}_Report/multiqc/{wildcards.prefix}_QC_report.html"),
+        coverage = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.prefix}_Report/data/{wildcards.prefix}_Final_Coverage.txt"),
+        kraken = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.prefix}_Report/data/{wildcards.prefix}_Kraken_report_final.csv"),
+        mlst = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.prefix}_Report/data/{wildcards.prefix}_MLST_results.csv"),
     output:
         QC_summary_report = f"results/{{prefix}}/{{prefix}}_Report/data/{{prefix}}_QC_summary.csv",
     params:
@@ -292,6 +317,7 @@ rule Summary:
 rule plot:
     input:
         outdir = lambda wildcards: expand(f"results/{wildcards.prefix}/"),
+        QC_summary_report = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.prefix}_Report/data/{wildcards.prefix}_QC_summary.csv"),
     output:
         QC_summary_report = f"results/{{prefix}}/{{prefix}}_Report/fig/{{prefix}}_Coverage_distribution.png",
     params:
