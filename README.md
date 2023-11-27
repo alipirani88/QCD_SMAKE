@@ -2,6 +2,23 @@
 
 QCD is a smakemake worflow for microbial illumina sequencing quality control and contamination detection. As a SOP part of Snitkin lab, this pipeline should be run on raw sequencing data as soon as the data is available from the sequencing core department. Apart from QCing raw sequencing data, it performs numerous downstream tasks such as AMR gene detection, SPAdes genome assembly, MLST detection and Assembly annotation. 
 
+## Installation
+
+> Clone the github directory onto your system.
+
+```
+git clone https://github.com/alipirani88/QCD_SMAKE.git
+
+```
+> Create QCD conda environment
+
+```
+conda env create -f QCD.yaml -n QCD
+```
+
+> Change snakemake configuration settings in config/config_test.yaml file and create a new sample list file - sample_test.tsv
+
+
 ## Quick start
 
 ### Run QCD on a set of samples.
