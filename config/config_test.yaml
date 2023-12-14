@@ -38,3 +38,10 @@ bioawk: bioawk -c fastx '{if(length($seq) > 1000) {print ">"$name; print $seq }}
 prokka: -kingdom Bacteria --force --rfam
 
 amrfinder_organism: Staphylococcus_aureus
+
+# QC thresholds
+min_contigs: 10
+max_contigs: 500
+assembly_length: 7000000
+coverage: 20
+kraken_host: Homosapiens
