@@ -16,7 +16,7 @@ git clone https://github.com/alipirani88/QCD_SMAKE.git
 conda env create -f QCD.yaml -n QCD
 ```
 
-> Change snakemake configuration settings in config/config_test.yaml file and create a new sample list file - sample_test.tsv
+> Change snakemake configuration settings in config/config.yaml file and create a new sample list file - sample_test.tsv
 
 
 ## Quick start
@@ -24,14 +24,14 @@ conda env create -f QCD.yaml -n QCD
 ### Run QCD on a set of samples.
 
 ```
-$ snakemake -s QCD.smk -p --use-conda -j 999 --cluster "sbatch -A {cluster.account} -p {cluster.partition} -N {cluster.nodes}  -t {cluster.walltime} -c {cluster.procs} --mem-per-cpu {cluster.pmem}" --conda-frontend conda --cluster-config config/cluster.json --configfile config/config_test.yaml --latency-wait 1000
+$ snakemake -s QCD.smk -p --use-conda -j 999 --cluster "sbatch -A {cluster.account} -p {cluster.partition} -N {cluster.nodes}  -t {cluster.walltime} -c {cluster.procs} --mem-per-cpu {cluster.pmem}" --conda-frontend conda --cluster-config config/cluster.json --configfile config/config.yaml --latency-wait 1000
 ```
 
 ![Alt text](./QCD_dag.svg)
 
 ### Gather Summary files and generate a report. 
 ```
-$ snakemake -s QCD_report.smk -p --configfile config/config_test.yaml
+$ snakemake -s QCD_report.smk -p --configfile config/config.yaml
 ```
 ![Alt text](./QCD_report_dag.svg)
 

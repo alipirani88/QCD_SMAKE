@@ -1,5 +1,5 @@
 # Configuration settings for Snakemake
-samples: config/sample_test.tsv
+samples: config/sample.tsv
 
 # Input fastq file directory path and output results directory path
 short_reads: /scratch/esnitkin_root/esnitkin/apirani/Github/temp/QCD/test_data
@@ -27,9 +27,6 @@ minlength: 40
 headcrop_length: 0
 
 bwa_alignment_settings: "-k 1 --non-deterministic --end-to-end --reorder --score-min L,0,0"
-
-ariba_card_db: /nfs/esnitkin/bin_group/database/ariba/CARD/CARD_db/
-ariba_mlst_db: /nfs/esnitkin/bin_group/database/ariba/MLST_db/Staphylococcus_aureus/ref_db/
 
 kraken_db: /nfs/esnitkin/bin_group/database/k2_standard_20230605/
 
